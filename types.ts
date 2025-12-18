@@ -1,5 +1,5 @@
 
-export type Category = 'clothes' | 'shoes' | 'pants' | 'full-outfit';
+export type Category = 'clothes' | 'shoes' | 'pants' | 'swimwear' | 'full-outfit';
 
 export interface ImageData {
   base64: string;
