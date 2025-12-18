@@ -2,7 +2,8 @@ import { GoogleGenAI } from "@google/genai";
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS Headers
+  console.log(`[API Request] ${req.method} ${req.url}`);
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -11,9 +12,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  // 调试用：支持 GET 访问
   if (req.method === 'GET') {
-    return res.status(200).json({ message: "TryOn API is online. Use POST to generate images." });
+    return res.status(200).json({ 
+      status: "online", 
+      message: "API Route is working correctly",
+      env_key_exists: !!process.env.API_KEY
+    });
   }
 
   if (req.method !== 'POST') {
@@ -24,18 +28,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { modelImage, itemImage, category } = req.body;
 
     if (!modelImage?.base64 || !itemImage?.base64) {
-      return res.status(400).json({ error: '请上传两张图片' });
+      return res.status(400).json({ error: 'Missing images' });
     }
 
     if (!process.env.API_KEY) {
-      console.error("Missing API_KEY env variable");
-      return res.status(500).json({ error: '服务器配置错误' });
+      return res.status(500).json({ error: 'Server API Key not configured' });
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
     const categoryLabel = category === 'shoes' ? 'footwear' : 'clothing';
-    const prompt = `Virtual Try-On: Seamlessly put the ${categoryLabel} from the second image onto the person in the first image. Keep original background and person facial features. Output only the image.`;
+    const prompt = `Virtual Try-On: Seamlessly overlay the ${categoryLabel} from the second image onto the person in the first image. Output ONLY the image.`;
 
     const result = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -48,8 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
-    const candidate = result.candidates?.[0];
-    const imagePart = candidate?.content?.parts?.find(p => p.inlineData);
+    const imagePart = result.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
     if (imagePart?.inlineData?.data) {
       return res.status(200).json({ 
@@ -57,11 +58,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const textPart = candidate?.content?.parts?.find(p => p.text);
-    return res.status(500).json({ error: textPart?.text || "AI 响应异常" });
+    return res.status(500).json({ error: "AI failed to generate visual output" });
 
   } catch (error: any) {
-    console.error("API Handler Error:", error);
+    console.error("[API Error]", error);
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 }
