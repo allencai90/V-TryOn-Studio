@@ -1,10 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-export const config = {
-  runtime: 'edge', // 使用 Edge Runtime 速度更快且免费额度高
-};
-
 export default async function handler(req: Request) {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
@@ -14,7 +10,7 @@ export default async function handler(req: Request) {
     const { modelImage, itemImage, category } = await req.json();
 
     if (!process.env.API_KEY) {
-      return new Response(JSON.stringify({ error: 'API_KEY is not configured on the server' }), { status: 500 });
+      return new Response(JSON.stringify({ error: 'Server configuration error: API_KEY missing' }), { status: 500 });
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -28,61 +24,41 @@ export default async function handler(req: Request) {
       Instruction: 
       1. Extract the ${categoryLabel} from Input 2.
       2. Seamlessly blend it onto the person in Input 1.
-      3. Ensure lighting, perspective, and fabric texture match the environment and pose.
-      4. Maintain the person's features, skin tone, and background from Input 1.
-      5. The final output must be only the high-resolution image of the person wearing the item.
-      6. If shoes, replace existing footwear. If clothes, replace upper/lower garment.
+      3. Match lighting and perspective.
+      4. Maintain original facial features and background.
+      5. Output ONLY the resulting high-res image.
     `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
-          {
-            inlineData: {
-              data: modelImage.base64,
-              mimeType: modelImage.mimeType,
-            },
-          },
-          {
-            inlineData: {
-              data: itemImage.base64,
-              mimeType: itemImage.mimeType,
-            },
-          },
-          {
-            text: prompt,
-          },
-        ],
-      },
+          { inlineData: { data: modelImage.base64, mimeType: modelImage.mimeType } },
+          { inlineData: { data: itemImage.base64, mimeType: itemImage.mimeType } },
+          { text: prompt }
+        ]
+      }
     });
 
-    const candidate = response.candidates?.[0];
-    if (!candidate?.content?.parts) {
-      throw new Error("Invalid response from Gemini API");
-    }
+    const parts = response.candidates?.[0]?.content?.parts;
+    if (!parts) throw new Error("No response from AI");
 
-    for (const part of candidate.content.parts) {
+    for (const part of parts) {
       if (part.inlineData) {
         return new Response(
-          JSON.stringify({ 
-            result: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` 
-          }),
-          { 
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          }
+          JSON.stringify({ result: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    throw new Error("No image data returned from model");
+    throw new Error("No image data in AI response");
 
   } catch (error: any) {
-    console.error("Server Error:", error);
+    console.error("TryOn Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal Server Error" }),
-      { status: 500 }
+      JSON.stringify({ error: error.message || "Failed to process image" }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
