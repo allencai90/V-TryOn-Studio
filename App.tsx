@@ -30,7 +30,7 @@ const App: React.FC = () => {
       setState(prev => ({ 
         ...prev, 
         loading: false, 
-        error: err.message || "生成效果失败，请重试或更换图片素材。" 
+        error: err.message || "生成失败，请检查网络或更换清晰度更高的图片。" 
       }));
     }
   };
@@ -57,7 +57,7 @@ const App: React.FC = () => {
               </svg>
             </div>
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-              V-TryOn Studio
+              AI V-TryOn Studio
             </h1>
           </div>
           
@@ -89,13 +89,13 @@ const App: React.FC = () => {
             <div className="glass-panel rounded-[32px] p-6 space-y-6 shadow-xl border-slate-100">
               <div className="grid grid-cols-1 gap-4">
                 <ImageUploader 
-                  label="1. 模特人像 (Model)" 
+                  label="1. 上传模特照片" 
                   image={state.modelImage}
                   onUpload={(data) => setState(prev => ({ ...prev, modelImage: data }))}
                   onClear={() => setState(prev => ({ ...prev, modelImage: null }))}
                 />
                 <ImageUploader 
-                  label="2. 服饰/泳衣单品 (Product)" 
+                  label="2. 上传衣物/鞋子照片" 
                   image={state.itemImage}
                   onUpload={(data) => setState(prev => ({ ...prev, itemImage: data }))}
                   onClear={() => setState(prev => ({ ...prev, itemImage: null }))}
@@ -118,10 +118,10 @@ const App: React.FC = () => {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>正在智能换装...</span>
+                    <span>正在换装中...</span>
                   </div>
                 ) : (
-                  <span>生成效果图</span>
+                  <span>开始 AI 换装</span>
                 )}
               </button>
 
@@ -139,13 +139,13 @@ const App: React.FC = () => {
                 <div>
                   <h2 className="text-2xl font-black text-slate-800">渲染结果</h2>
                   <p className="text-sm text-slate-400 mt-1">
-                    {state.loading ? '正在进行像素级服饰迁移...' : '效果已基于 Gemini 视觉逻辑生成'}
+                    AI 正在为您实时合成衣物穿搭效果
                   </p>
                 </div>
                 {state.result && (
                   <a 
                     href={state.result} 
-                    download={`try-on-${state.category}.png`}
+                    download={`try-on-result.png`}
                     className="flex items-center space-x-2 px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-xs hover:bg-black transition-all"
                   >
                     <span>保存图片</span>
@@ -162,21 +162,12 @@ const App: React.FC = () => {
                   />
                 ) : (
                   <div className="flex flex-col items-center text-slate-300">
-                    {state.loading ? (
-                       <div className="flex flex-col items-center">
-                         <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                         <p className="font-bold text-slate-400">正在处理服饰贴合与光影调整...</p>
-                       </div>
-                    ) : (
-                      <>
-                        <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <p className="font-bold">就绪，等待上传并生成</p>
-                      </>
-                    )}
+                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <p className="font-bold">上传模特和衣服开始魔法</p>
                   </div>
                 )}
               </div>
