@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -7,8 +6,8 @@ export default defineConfig({
   server: {
     port: 3000,
   },
-  // 关键：将环境变量注入到前端代码中
   define: {
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
+    // 将变量注入为全局常量，处理可能的 undefined 情况
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || process.env.VITE_API_KEY || "")
   }
 });
