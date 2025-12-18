@@ -9,30 +9,20 @@ export const performTryOn = async (
 ): Promise<string> => {
   try {
     const apiKey = process.env.API_KEY;
-    if (!apiKey || apiKey === "undefined") {
-      throw new Error("API Key 未配置。请检查环境设置。");
+    if (!apiKey) {
+      throw new Error("API Key 未配置。");
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: apiKey });
+    // 回退到 Flash 模型，不需要特殊的付费 Key 权限
     const modelName = 'gemini-2.5-flash-image';
 
-    const itemLabel = category === 'shoes' ? 'footwear' : 'clothing/outfit/swimsuit';
-
-    /**
-     * 核心 Prompt 优化：
-     * 针对用户反馈的“效果变差”（尤其是泳衣），回归最简洁但具有约束力的视觉迁移指令。
-     * 强调“皮肤保留”和“身体轮廓贴合”。
-     */
-    const prompt = `Advanced Photorealistic Virtual Try-On Task:
-1. Target Model: Image 1 (The person).
-2. Target Item: Image 2 (The ${itemLabel} to be worn).
-3. Action: Replace the clothing currently worn by the person in Image 1 with the exact garment shown in Image 2.
-4. Precision Guidelines:
-   - Body Fit: The new garment must naturally wrap around the person's unique body shape, muscles, and pose.
-   - Texture & Pattern: Perfectly transfer the fabric texture, pattern, and color from Image 2 to the person.
-   - Preservation: Do NOT change the person's face, hair, eyes, background, or original skin tone.
-   - Natural Integration: Adjust shadows and highlights on the fabric to match the environment of Image 1.
-5. Constraint: Return ONLY the resulting photorealistic image without any extra text or composite frames.`;
+    const prompt = `Virtual Try-On Task: 
+1. Look at Image 1 (the person) and Image 2 (the garment/item).
+2. Take the exact garment/shoes from Image 2 and put it onto the person in Image 1.
+3. Ensure the item fits the person's body shape and pose naturally.
+4. Keep the person's face, skin tone, and background unchanged.
+5. Return only the final merged image showing the person wearing the new item.`;
 
     const result = await ai.models.generateContent({
       model: modelName,
@@ -46,25 +36,17 @@ export const performTryOn = async (
     });
 
     const candidate = result.candidates?.[0];
-    if (!candidate) throw new Error("AI 未能返回结果。");
+    if (!candidate) throw new Error("AI 响应异常。");
 
     const imagePart = candidate.content.parts.find(p => p.inlineData);
     if (imagePart?.inlineData?.data) {
       return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
     }
 
-    const textPart = candidate.content.parts.find(p => p.text);
-    if (textPart?.text) {
-      throw new Error(`AI 返回信息: ${textPart.text}`);
-    }
-
-    throw new Error("无法合成图像，请尝试使用背景更简洁、模特姿势更标准的照片。");
+    throw new Error("未能生成有效图像，请尝试更换图片素材。");
 
   } catch (error: any) {
-    console.error("Try-On Service Error:", error);
-    const msg = error.message || "";
-    if (msg.includes('429')) throw new Error("⚠️ 处理量过载，请等待一分钟后再次尝试。");
-    if (msg.includes('403')) throw new Error("⚠️ 权限错误或 API Key 已失效。");
+    console.error("Gemini Service Error:", error);
     throw error;
   }
 };
