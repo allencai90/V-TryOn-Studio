@@ -1,5 +1,5 @@
 
-export type Category = 'clothes' | 'shoes' | 'pants' | 'swimwear' | 'full-outfit';
+export type Category = 'clothes' | 'shoes';
 
 export interface ImageData {
   base64: string;
@@ -14,3 +14,4 @@ export interface GenerationState {
   result: string | null;
   error: string | null;
 }
+
