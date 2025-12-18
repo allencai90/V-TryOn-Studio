@@ -1,6 +1,6 @@
 {
-  "name": "AI V-TryOn Studio",
-  "description": "A high-end virtual try-on application that uses Gemini 2.5 Flash Image to seamlessly blend clothing and shoes onto models.",
+  "name": "AI V-TryOn Studio Pro",
+  "description": "Professional virtual try-on using Gemini 3 Flash with advanced clothing replacement logic.",
   "requestFramePermissions": [
     "camera"
   ]
