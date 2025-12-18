@@ -9,49 +9,55 @@ export const performTryOn = async (
   try {
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      throw new Error("API Key 未配置。请确保环境变量 API_KEY 已设置。");
+      throw new Error("API Key 未配置。请在 Netlify Environment Variables 中设置 API_KEY。");
     }
 
     const ai = new GoogleGenAI({ apiKey });
     
-    // 更加激进的类别描述
-    let targetDescription = "";
+    // 根据类别精准定义 AI 的操作目标
+    let detailedGoal = "";
     switch(category) {
       case 'clothes': 
-        targetDescription = "this one-piece garment/swimsuit/top"; 
-        break;
-      case 'shoes': 
-        targetDescription = "this footwear"; 
+        detailedGoal = "REPLACE the existing top/garment with this new piece."; 
         break;
       case 'pants': 
-        targetDescription = "these trousers/pants"; 
+        detailedGoal = "REPLACE the existing pants/bottoms with this new piece."; 
+        break;
+      case 'shoes': 
+        detailedGoal = "REPLACE the current shoes with these new ones."; 
         break;
       case 'full-outfit': 
-        targetDescription = "this complete outfit"; 
+        detailedGoal = "REPLACE the ENTIRE OUTFIT (top and bottom) with this one-piece/dress."; 
         break;
-      default: 
-        targetDescription = "this specific item";
     }
     
     /**
-     * 核心逻辑更新：
-     * 1. 使用 "ERASE EVERYTHING" 指令
-     * 2. 明确指出如果目标是泳衣，必须移除原有的裤子/长袖
-     * 3. 要求重新渲染皮肤 (Render realistic skin)
+     * 极度强化的提示词：
+     * 针对“裤子还在”的顽疾，加入“裸露皮肤渲染”指令。
      */
-    const prompt = `CRITICAL TASK: HIGH-FIDELITY VIRTUAL TRY-ON
-1. OBJECTIVE: Take the ${targetDescription} from Image 2 and put it on the person in Image 1.
-2. STEP 1 (ERASE): COMPLETELY ERASE and REMOVE every piece of existing clothing the person is wearing in Image 1. This includes shirts, jackets, pants, and skirts. The original clothes MUST NOT be visible.
-3. STEP 2 (REPLACE): Put the ${targetDescription} from Image 2 onto the person.
-4. STEP 3 (ANATOMY): If the new item (like a swimsuit) covers less area than the original clothes (like pants or sweaters), you MUST realistically render the person's bare skin, legs, and torso to match the new garment's shape.
-5. STEP 4 (BLENDING): Ensure the lighting on the new garment matches the background of Image 1 perfectly.
-6. STEP 5 (POSE): The garment must fold and stretch according to the person's pose in Image 1.
-7. FINAL CHECK: The person should ONLY be wearing the ${targetDescription} from Image 2. No original sleeves, collars, or pant legs should remain.
+    const prompt = `ACT AS A PROFESSIONAL CLOTHING EDITOR.
+TASK: Virtual Try-On for a ${category}.
 
-Output ONLY the final processed image. No text.`;
+IMAGE 1: The Model.
+IMAGE 2: The Target Item (Ignore any backgrounds or hangers in this image).
+
+EXECUTION STEPS:
+1. IDENTIFY: Locate the person in Image 1.
+2. DELETE: COMPLETELY REMOVE ALL current clothing the person is wearing in Image 1. This includes ANY shirt, jacket, sweater, pants, shorts, or skirts. The person should be treated as a blank canvas for the new item.
+3. RENDER SKIN: If the target item in Image 2 is smaller than the original clothes (e.g., Image 2 is a bikini or swimsuit, but Image 1 is wearing a bulky sweater and jeans), you MUST realistically render the person's bare skin (torso, belly, legs, and arms) that would naturally be exposed.
+4. APPLY: Place the item from Image 2 onto the person. It must fit their body shape, curves, and pose naturally.
+5. QUALITY: Ensure the lighting, shadows, and fabric texture blend perfectly with the environment of Image 1.
+
+CRITICAL RULES:
+- THE ORIGINAL PANTS MUST BE GONE.
+- THE ORIGINAL TOP MUST BE GONE.
+- If it's a swimsuit, show the legs and midriff.
+- DO NOT just overlay the image. Perform a full pixel replacement.
+
+Output ONLY the resulting image.`;
 
     const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-3-flash-preview', // 使用最新预览版以获得更好的空间逻辑理解
       contents: {
         parts: [
           { 
@@ -70,13 +76,13 @@ Output ONLY the final processed image. No text.`;
         ]
       },
       config: {
-        // 降低温度以获得更写实、更符合指令的结果
-        temperature: 0.2,
+        temperature: 0.1, // 极低温度，强制遵循“删除原有裤子”的指令
+        topP: 0.95
       }
     });
 
     const candidate = result.candidates?.[0];
-    if (!candidate) throw new Error("AI 未返回任何结果。");
+    if (!candidate) throw new Error("AI 没能理解图片内容，请尝试换一张光线更好的模特图。");
 
     const imagePart = candidate.content.parts.find(p => p.inlineData);
 
@@ -85,10 +91,10 @@ Output ONLY the final processed image. No text.`;
     }
 
     const textPart = candidate.content.parts.find(p => p.text);
-    throw new Error(textPart?.text || "生成失败。请确保图片清晰且人物姿态完整。");
+    throw new Error(textPart?.text || "生成图像失败，请重试。");
 
   } catch (error: any) {
-    console.error("Gemini Try-On Error:", error);
+    console.error("Try-On Error:", error);
     throw error;
   }
 };
