@@ -16,22 +16,23 @@ export const performTryOn = async (
     const ai = new GoogleGenAI({ apiKey });
     const modelName = 'gemini-2.5-flash-image';
 
-    const itemLabel = category === 'shoes' ? 'footwear' : 'clothing/outfit';
+    const itemLabel = category === 'shoes' ? 'footwear' : 'clothing/outfit/swimsuit';
 
     /**
-     * 【恢复初始核心 Prompt】
-     * 关键逻辑：不再死板规定类别，而是让模型通过“Image 1 (Person)”和“Image 2 (Product)”
-     * 进行视觉特征迁移。这对泳衣、内衣、紧身衣等需要贴合皮肤的衣物效果最佳。
+     * 核心 Prompt 优化：
+     * 针对用户反馈的“效果变差”（尤其是泳衣），回归最简洁但具有约束力的视觉迁移指令。
+     * 强调“皮肤保留”和“身体轮廓贴合”。
      */
-    const prompt = `Virtual Fashion Try-On Task:
-1. Target: The person in image 1.
-2. Source: The ${itemLabel} in image 2.
-3. Instruction: Change the person's current ${itemLabel} in image 1 to the new one from image 2.
-4. Constraints:
-   - Precisely follow the person's body contours, pose, and muscle structure.
-   - Strictly preserve the person's identity, face, skin tone, and entire background.
-   - Ensure hyper-realistic fabric folds and natural shadow interaction.
-5. Final Result: Output ONLY the resulting high-quality photograph.`;
+    const prompt = `Advanced Photorealistic Virtual Try-On Task:
+1. Target Model: Image 1 (The person).
+2. Target Item: Image 2 (The ${itemLabel} to be worn).
+3. Action: Replace the clothing currently worn by the person in Image 1 with the exact garment shown in Image 2.
+4. Precision Guidelines:
+   - Body Fit: The new garment must naturally wrap around the person's unique body shape, muscles, and pose.
+   - Texture & Pattern: Perfectly transfer the fabric texture, pattern, and color from Image 2 to the person.
+   - Preservation: Do NOT change the person's face, hair, eyes, background, or original skin tone.
+   - Natural Integration: Adjust shadows and highlights on the fabric to match the environment of Image 1.
+5. Constraint: Return ONLY the resulting photorealistic image without any extra text or composite frames.`;
 
     const result = await ai.models.generateContent({
       model: modelName,
@@ -45,7 +46,7 @@ export const performTryOn = async (
     });
 
     const candidate = result.candidates?.[0];
-    if (!candidate) throw new Error("AI 响应异常。");
+    if (!candidate) throw new Error("AI 未能返回结果。");
 
     const imagePart = candidate.content.parts.find(p => p.inlineData);
     if (imagePart?.inlineData?.data) {
@@ -54,16 +55,16 @@ export const performTryOn = async (
 
     const textPart = candidate.content.parts.find(p => p.text);
     if (textPart?.text) {
-      throw new Error(`AI 返回: ${textPart.text}`);
+      throw new Error(`AI 返回信息: ${textPart.text}`);
     }
 
-    throw new Error("生成失败，请尝试更换清晰的素材图片。");
+    throw new Error("无法合成图像，请尝试使用背景更简洁、模特姿势更标准的照片。");
 
   } catch (error: any) {
-    console.error("Try-On Error:", error);
+    console.error("Try-On Service Error:", error);
     const msg = error.message || "";
-    if (msg.includes('429')) throw new Error("⚠️ 额度限制：请等待一分钟后再次尝试。");
-    if (msg.includes('403')) throw new Error("⚠️ 权限限制：当前 Key 不支持该模型。");
+    if (msg.includes('429')) throw new Error("⚠️ 处理量过载，请等待一分钟后再次尝试。");
+    if (msg.includes('403')) throw new Error("⚠️ 权限错误或 API Key 已失效。");
     throw error;
   }
 };
